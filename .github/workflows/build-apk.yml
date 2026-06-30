@@ -19,27 +19,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.4'
+          flutter-version: '3.22.3'
           channel: stable
 
       - name: Regenerate Android
         run: flutter create --platforms=android --project-name tl_security_enterprise .
-
-      - name: Patch Kotlin
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("android/app/build.gradle.kts")
-          s = p.read_text()
-          s = s.replace("""
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-    }
-}
-""", "")
-          p.write_text(s)
-          PY
 
       - name: Flutter pub get
         run: flutter pub get
