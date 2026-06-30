@@ -2,55 +2,28 @@ name: Build APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Baixar projeto
+      uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+    - name: Instalar Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.5'
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.4'
-          channel: stable
-          cache: true
+    - name: Dependências
+      run: flutter pub get
 
-      - name: Recreate Android project
-        run: |
-          rm -rf android
-          flutter create --platforms=android --project-name tl_security_enterprise .
+    - name: Gerar APK
+      run: flutter build apk --debug
 
-      - name: Fix Android internet permission
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('android/app/src/main/AndroidManifest.xml')
-          s = p.read_text()
-          if 'android.permission.INTERNET' not in s:
-              s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />')
-          p.write_text(s)
-          PY
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: TL-Security-Enterprise-APK
-          path: build/app/outputs/flutter-apk/app-debug.apk
+    - name: Salvar APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: TL-Security-APK
+        path: build/app/outputs/flutter-apk/app-debug.apk
