@@ -1,38 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  final logged = prefs.getBool('logged') ?? false;
-  runApp(TLSecurityApp(logged: logged));
+void main() {
+  runApp(const TLSecurityApp());
 }
 
 class TLSecurityApp extends StatelessWidget {
-  final bool logged;
-  const TLSecurityApp({super.key, required this.logged});
+  const TLSecurityApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'TL Security Enterprise',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF07111F),
-        primaryColor: const Color(0xFF1457FF),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF1457FF),
-          secondary: Color(0xFF00E676),
-          surface: Color(0xFF101B2B),
-        ),
-        cardTheme: CardTheme(
-          color: const Color(0xFF101B2B),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        ),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
+      home: const WebPanelPage(),
+    );
+  }
+}
+
+class WebPanelPage extends StatefulWidget {
+  const WebPanelPage({super.key});
+
+  @override
+  State<WebPanelPage> createState() => _WebPanelPageState();
+}
+
+class _WebPanelPageState extends State<WebPanelPage> {
+  late final WebViewController controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(
+        Uri.parse('http://zabbix.tlconsultorias.com.br:8088/login'),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: WebViewWidget(controller: controller),
       ),
-      home: logged ? const HomeScreen() : const LoginScreen(),
     );
   }
 }
