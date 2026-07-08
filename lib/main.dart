@@ -86,15 +86,18 @@ class _WebPanelPageState extends State<WebPanelPage> {
             });
           },
           onPageFinished: (url) async {
-  _updateMenuByUrl(url);
+            _updateMenuByUrl(url);
 
-  setState(() {
-    isLoading = false;
-  });
+            setState(() {
+              isLoading = false;
+            });
 
-  await _injectAppStyle(url);
-  await _hideWebSidebar();
-},
+            await _injectAppStyle(url);
+
+            if (!_isLoginUrl(url)) {
+              await _hideWebSidebar();
+            }
+          },
           onWebResourceError: (error) {
             setState(() {
               isLoading = false;
@@ -106,18 +109,33 @@ class _WebPanelPageState extends State<WebPanelPage> {
       ..loadRequest(Uri.parse('$baseUrl/login'));
   }
 
+  bool _isLoginUrl(String url) {
+    final uri = Uri.tryParse(url);
+    final path = uri?.path ?? '';
+    return path == '/login' || path.contains('login');
+  }
+
   void _updateMenuByUrl(String url) {
     final uri = Uri.tryParse(url);
     final path = uri?.path ?? '';
 
-    final isLoginPage = path == '/login' || path.contains('login');
+    final isLoginPage = _isLoginUrl(url);
 
     int index = selectedIndex;
 
     for (int i = 0; i < menus.length; i++) {
-      if (path.startsWith(menus[i].path)) {
-        index = i;
-        break;
+      final menuPath = menus[i].path;
+
+      if (menuPath == '/') {
+        if (path == '/' || path.isEmpty || path == '/dashboard') {
+          index = i;
+          break;
+        }
+      } else {
+        if (path.startsWith(menuPath)) {
+          index = i;
+          break;
+        }
       }
     }
 
@@ -128,10 +146,7 @@ class _WebPanelPageState extends State<WebPanelPage> {
   }
 
   Future<void> _injectAppStyle(String url) async {
-    final uri = Uri.tryParse(url);
-    final path = uri?.path ?? '';
-    final isLoginPage = path == '/login' || path.contains('login');
-
+    final isLoginPage = _isLoginUrl(url);
     final css = isLoginPage ? _loginCss : _panelCss;
 
     await controller.runJavaScript('''
@@ -155,6 +170,158 @@ class _WebPanelPageState extends State<WebPanelPage> {
         style.id = 'tl-security-mobile-style';
         style.innerHTML = `$css`;
         document.head.appendChild(style);
+      })();
+    ''');
+  }
+
+  Future<void> _hideWebSidebar() async {
+    await controller.runJavaScript(r'''
+      (function() {
+        function forceMobileLayout() {
+          const menuWords = [
+            'Dashboard',
+            'Câmeras',
+            'Eventos',
+            'Gravações',
+            'Notificações',
+            'Armazenamento',
+            'Configurações',
+            'Logs',
+            'Sair'
+          ];
+
+          const allElements = Array.from(document.querySelectorAll('body *'));
+
+          allElements.forEach(function(el) {
+            const text = (el.innerText || '').trim();
+            if (!text) return;
+
+            const foundWords = menuWords.filter(word => text.includes(word)).length;
+            const rect = el.getBoundingClientRect();
+
+            if (foundWords >= 5 && rect.left <= 30 && rect.width <= 340 && rect.height > 300) {
+              el.style.display = 'none';
+              el.style.visibility = 'hidden';
+              el.style.width = '0px';
+              el.style.minWidth = '0px';
+              el.style.maxWidth = '0px';
+              el.style.padding = '0px';
+              el.style.margin = '0px';
+              el.style.overflow = 'hidden';
+
+              let parent = el.parentElement;
+
+              while (parent && parent !== document.body) {
+                const parentRect = parent.getBoundingClientRect();
+
+                if (parentRect.left <= 30 && parentRect.width <= 360) {
+                  parent.style.display = 'none';
+                  parent.style.visibility = 'hidden';
+                  parent.style.width = '0px';
+                  parent.style.minWidth = '0px';
+                  parent.style.maxWidth = '0px';
+                  parent.style.padding = '0px';
+                  parent.style.margin = '0px';
+                  parent.style.overflow = 'hidden';
+                }
+
+                parent = parent.parentElement;
+              }
+            }
+          });
+
+          const oldStyle = document.getElementById('tl-hide-sidebar-force');
+          if (oldStyle) oldStyle.remove();
+
+          const style = document.createElement('style');
+          style.id = 'tl-hide-sidebar-force';
+          style.innerHTML = `
+            aside,
+            nav,
+            .sidebar,
+            .side-bar,
+            .sidenav,
+            .side-menu,
+            .menu-lateral,
+            .drawer,
+            .navigation,
+            .app-sidebar,
+            [class*="sidebar"],
+            [class*="side-menu"],
+            [class*="sidenav"] {
+              display: none !important;
+              visibility: hidden !important;
+              width: 0 !important;
+              min-width: 0 !important;
+              max-width: 0 !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              overflow: hidden !important;
+            }
+
+            html,
+            body {
+              width: 100vw !important;
+              max-width: 100vw !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow-x: hidden !important;
+              background: #020817 !important;
+            }
+
+            body {
+              padding-bottom: 78px !important;
+            }
+
+            body > div,
+            #root,
+            #app,
+            main,
+            section,
+            .main,
+            .content,
+            .main-content,
+            .page-content,
+            .container,
+            .container-fluid,
+            .wrapper,
+            [class*="content"],
+            [class*="main"] {
+              margin-left: 0 !important;
+              left: 0 !important;
+              transform: none !important;
+              width: 100vw !important;
+              max-width: 100vw !important;
+              box-sizing: border-box !important;
+            }
+
+            [class*="ml-"],
+            [style*="margin-left"] {
+              margin-left: 0 !important;
+            }
+
+            img,
+            video,
+            canvas,
+            iframe {
+              max-width: 100% !important;
+            }
+
+            button,
+            a {
+              touch-action: manipulation !important;
+            }
+          `;
+
+          document.head.appendChild(style);
+        }
+
+        forceMobileLayout();
+
+        setTimeout(forceMobileLayout, 300);
+        setTimeout(forceMobileLayout, 800);
+        setTimeout(forceMobileLayout, 1500);
+        setTimeout(forceMobileLayout, 2500);
       })();
     ''');
   }
@@ -253,7 +420,8 @@ class _WebPanelPageState extends State<WebPanelPage> {
 
   static const String _panelCss = '''
     html, body {
-      max-width: 100% !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
       overflow-x: hidden !important;
       background: #020817 !important;
       margin: 0 !important;
@@ -265,6 +433,7 @@ class _WebPanelPageState extends State<WebPanelPage> {
     }
 
     aside,
+    nav,
     nav.sidebar,
     .sidebar,
     .side-bar,
@@ -274,6 +443,10 @@ class _WebPanelPageState extends State<WebPanelPage> {
     .navbar,
     .topbar {
       display: none !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
     }
 
     main,
@@ -285,10 +458,11 @@ class _WebPanelPageState extends State<WebPanelPage> {
     .container-fluid,
     .wrapper {
       margin-left: 0 !important;
-      padding-left: 10px !important;
-      padding-right: 10px !important;
-      width: 100% !important;
-      max-width: 100% !important;
+      left: 0 !important;
+      padding-left: 8px !important;
+      padding-right: 8px !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
       box-sizing: border-box !important;
     }
 
@@ -342,30 +516,35 @@ class _WebPanelPageState extends State<WebPanelPage> {
     return WillPopScope(
       onWillPop: _onBackPressed,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Row(
-            children: [
-              Icon(Icons.security_rounded, size: 22),
-              SizedBox(width: 8),
-              Text(
-                'TL Security',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        appBar: showBottomMenu
+            ? AppBar(
+                title: const Row(
+                  children: [
+                    Icon(Icons.security_rounded, size: 22),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'TL Security Enterprise',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Atualizar',
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: () {
-                controller.reload();
-              },
-            ),
-          ],
-        ),
+                actions: [
+                  IconButton(
+                    tooltip: 'Atualizar',
+                    icon: const Icon(Icons.refresh_rounded),
+                    onPressed: () {
+                      controller.reload();
+                    },
+                  ),
+                ],
+              )
+            : null,
         body: Stack(
           children: [
             if (!hasError)
