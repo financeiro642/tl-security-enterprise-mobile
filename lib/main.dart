@@ -86,14 +86,15 @@ class _WebPanelPageState extends State<WebPanelPage> {
             });
           },
           onPageFinished: (url) async {
-            _updateMenuByUrl(url);
+  _updateMenuByUrl(url);
 
-            setState(() {
-              isLoading = false;
-            });
+  setState(() {
+    isLoading = false;
+  });
 
-            await _injectAppStyle(url);
-          },
+  await _injectAppStyle(url);
+  await _hideWebSidebar();
+},
           onWebResourceError: (error) {
             setState(() {
               isLoading = false;
